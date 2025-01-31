@@ -1,41 +1,79 @@
 from flask import Flask, request
-import os
 from twilio.twiml.messaging_response import MessagingResponse
 from openai import OpenAI
+import time
+
+# 🔹 Reemplaza estos valores con tus credenciales
+OPENAI_API_KEY = "TU_OPENAI_API_KEY_AQUI"  # 🔴 Reemplaza con tu API Key de OpenAI
+ASSISTANT_ID = "TU_ASSISTANT_ID_AQUI"  # 🔴 Reemplaza con el ID de tu asistente de OpenAI
+
+# Configurar el cliente de OpenAI
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Crear la aplicación Flask
 app = Flask(__name__)
 
-# Configurar las credenciales desde las variables de entorno
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# Diccionario para almacenar las conversaciones por usuario
+THREADS = {}
 
-# Configura el cliente de OpenAI
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+def responder_con_asistente(user_id, pregunta):
+    """
+    Envía una pregunta al asistente de OpenAI y obtiene la respuesta.
+    """
+    try:
+        # Si el usuario no tiene un hilo de conversación, crear uno nuevo
+        if user_id not in THREADS:
+            thread = client.beta.threads.create()
+            THREADS[user_id] = thread.id  # Guarda el ID del hilo para este usuario
+
+        thread_id = THREADS[user_id]
+
+        # Agregar el mensaje del usuario al hilo
+        client.beta.threads.messages.create(
+            thread_id=thread_id,
+            role="user",
+            content=pregunta
+        )
+
+        # Ejecutar el asistente en el hilo
+        run = client.beta.threads.runs.create(
+            thread_id=thread_id,
+            assistant_id=ASSISTANT_ID
+        )
+
+        # Esperar a que el asistente procese la respuesta
+        while True:
+            run_status = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
+            if run_status.status in ["completed", "failed"]:
+                break
+            time.sleep(1)  # Espera 1 segundo antes de revisar nuevamente
+
+        if run_status.status == "completed":
+            # Obtener la respuesta del asistente
+            messages = client.beta.threads.messages.list(thread_id=thread_id)
+            respuesta = messages.data[0].content[0].text.value  # Extraer la respuesta del asistente
+            return respuesta
+        else:
+            return "Hubo un error procesando la solicitud."
+    
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_reply():
     """
-    Webhook para manejar mensajes de WhatsApp
+    Webhook para manejar mensajes de WhatsApp desde Twilio.
     """
-    # Recibe el mensaje del usuario
+    # Obtener el mensaje del usuario y su número de WhatsApp
     incoming_msg = request.values.get("Body", "").strip()
+    from_number = request.values.get("From", "").strip()
 
-    # Responder con ChatGPT
-    try:
-        # Enviar mensaje a OpenAI (ChatGPT)
-        response = openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",  # Cambia a "gpt-3.5-turbo" si es necesario
-            messages=[{"role": "user", "content": incoming_msg}]
-        )
-        reply = response.choices[0].message.content
-    except Exception as e:
-        reply = f"Hubo un error procesando tu mensaje: {str(e)}"
+    # Responder con el asistente de OpenAI
+    respuesta = responder_con_asistente(from_number, incoming_msg)
 
     # Crear respuesta para Twilio
     twilio_response = MessagingResponse()
-    twilio_response.message(reply)
+    twilio_response.message(respuesta)
 
     return str(twilio_response)
 
