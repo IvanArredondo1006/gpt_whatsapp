@@ -50,15 +50,14 @@ def responder_con_asistente(user_id, pregunta):
             time.sleep(1)
 
         if run_status.status == "completed":
+            # Obtener el mensaje generado
             messages = openai_client.beta.threads.messages.list(thread_id=thread_id)
-            if messages.data:
-                respuesta = messages.data[0].content[0].text.value
-            else:
-                respuesta = "No se pudo obtener una respuesta del asistente."
+            respuesta = messages.data[-1].content  # Última respuesta generada
+            if len(respuesta) > 1600:
+                respuesta = respuesta[:1597] + "..."  # Recortar si excede el límite de Twilio
+            return respuesta
         else:
-            respuesta = "Hubo un error procesando la solicitud."
-
-        return respuesta
+            return "Hubo un error generando la respuesta del asistente."
 
     except Exception as e:
         print(f"Error en el asistente: {str(e)}")
