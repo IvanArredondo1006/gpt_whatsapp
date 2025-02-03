@@ -34,7 +34,8 @@ def responder_con_asistente(user_id, pregunta):
         openai_client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
-            content=pregunta
+            content=pregunta,
+            max_tokens=500
         )
 
         run = openai_client.beta.threads.runs.create(
