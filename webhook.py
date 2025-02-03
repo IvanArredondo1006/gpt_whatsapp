@@ -77,6 +77,7 @@ def whatsapp_reply():
 
     twilio_response = MessagingResponse()
     twilio_response.message(respuesta)
+    print(f"Respuesta enviada a Twilio: {respuesta}")
 
     return str(twilio_response)
 
