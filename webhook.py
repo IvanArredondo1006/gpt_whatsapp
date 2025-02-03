@@ -8,7 +8,7 @@ import time
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-ASSISTANT_ID = "asst_8q4C3CIgON29vBfnkbLEJpQY"  # 🔴 Reemplaza con tu Assistant ID real
+ASSISTANT_ID = "asst_eocUon5DYKr6iDz7wYQKC2jd"  # 🔴 Reemplaza con tu Assistant ID real
 
 # Configurar el cliente de OpenAI
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
