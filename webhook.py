@@ -30,7 +30,7 @@ def responder_con_asistente(user_id, pregunta):
             print(f"Hilo existente para {user_id}: {THREADS[user_id]}")
 
         thread_id = THREADS[user_id]
-
+        start_time = time.time()
         openai_client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
@@ -42,11 +42,13 @@ def responder_con_asistente(user_id, pregunta):
             assistant_id=ASSISTANT_ID
         )
 
+        end_time = time.time()
+
+        print(f"Tiempo para obtener respuesta de OpenAI: {end_time - start_time} segundos")
         while True:
             run_status = openai_client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             if run_status.status in ["completed", "failed"]:
                 break
-            time.sleep(1)
 
         if run_status.status == "completed":
             messages = openai_client.beta.threads.messages.list(thread_id=thread_id)
@@ -62,6 +64,8 @@ def responder_con_asistente(user_id, pregunta):
     except Exception as e:
         print(f"Error en el asistente: {str(e)}")
         return f"Error: {str(e)}"
+
+
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_reply():
