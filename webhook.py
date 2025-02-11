@@ -27,49 +27,52 @@ def procesar_y_responder(from_number, incoming_msg):
     Procesa el mensaje usando OpenAI y envía la respuesta a Twilio en segundo plano.
     """
     try:
-        # Generar respuesta con OpenAI
+        # Verificar si existe un hilo para el usuario, si no, crearlo
         if from_number not in THREADS:
             thread = openai_client.beta.threads.create()
             THREADS[from_number] = thread.id
         thread_id = THREADS[from_number]
 
+        # Enviar el mensaje al asistente
         openai_client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
             content=incoming_msg
         )
 
+        # Iniciar la ejecución del asistente
         run = openai_client.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=ASSISTANT_ID
         )
 
-        # Esperar a que el asistente complete su ejecución
-        while True:
+        # Esperar la respuesta del asistente (máximo 15 segundos por Twilio)
+        start_time = time.time()
+        while time.time() - start_time < 15:
             run_status = openai_client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             if run_status.status in ["completed", "failed"]:
                 break
             time.sleep(1)
 
+        # Obtener la respuesta
         if run_status.status == "completed":
             messages = openai_client.beta.threads.messages.list(thread_id=thread_id)
-            if messages.data:
-                respuesta = messages.data[0].content[0].text.value
-            else:
-                respuesta = "No se pudo obtener una respuesta del asistente."
+            respuesta = messages.data[0].content[0].text.value if messages.data else "No se pudo obtener una respuesta del asistente."
         else:
-            respuesta = "Hubo un error procesando la solicitud."
+            respuesta = "Lo siento, no pude procesar tu solicitud en este momento."
 
         # Enviar la respuesta a Twilio
-        from twilio.rest import Client
-        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        client.messages.create(
-            from_='whatsapp:+14155238886',
-            to=from_number,
-            body=respuesta
-        )
-
-        print(f"Respuesta enviada a {from_number}: {respuesta}")
+        try:
+            from twilio.rest import Client
+            client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+            client.messages.create(
+                from_='whatsapp:+573186952533',  # ✅ Tu número en producción
+                to=from_number,
+                body=respuesta
+            )
+            print(f"Respuesta enviada a {from_number}: {respuesta}")
+        except Exception as twilio_error:
+            print(f"Error al enviar mensaje a Twilio: {str(twilio_error)}")
 
     except Exception as e:
         print(f"Error procesando mensaje para {from_number}: {str(e)}")
