@@ -48,7 +48,7 @@ def procesar_y_responder(from_number, incoming_msg):
             if len(messages) >= 10:
                 thread = openai_client.beta.threads.create()
                 THREADS[from_number] = thread.id
-                print(f"[INFO] Nuevo Thread creado para {from_number} debido a límite de mensajes.")
+                print(f"[INFO] Nuevo Thread creado para {from_number} debido a límite de mensajes, thread_id{thread_id}.")
             else:
                 print(f"[INFO] Usando Thread existente para {from_number}, Mensajes en el hilo: {len(messages)}")
         else:
