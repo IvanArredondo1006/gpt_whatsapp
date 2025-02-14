@@ -17,17 +17,17 @@ app = Flask(__name__)
 
 THREADS = {}
 
-def count_tokens(text):
-    """Función para contar tokens en un mensaje usando OpenAI."""
-    try:
-        response = openai_client.embeddings.create(
-            model="text-embedding-ada-002",
-            input=text
-        )
-        return response.usage.total_tokens
-    except Exception as e:
-        print(f"Error contando tokens: {str(e)}")
-        return 0
+# def count_tokens(text):
+#     """Función para contar tokens en un mensaje usando OpenAI."""
+#     try:
+#         response = openai_client.embeddings.create(
+#             model="text-embedding-ada-002",
+#             input=text
+#         )
+#         return response.usage.total_tokens
+#     except Exception as e:
+#         print(f"Error contando tokens: {str(e)}")
+#         return 0
 
 def preprocesar_mensaje(mensaje):
     if len(mensaje.strip()) == 0:
@@ -60,8 +60,8 @@ def procesar_y_responder(from_number, incoming_msg):
         thread_id = THREADS[from_number]
 
         # Contar tokens del mensaje
-        tokens_input = count_tokens(incoming_msg)
-        print(f"[INFO] Mensaje enviado al asistente ({tokens_input} tokens): {incoming_msg}")
+        # tokens_input = count_tokens(incoming_msg)
+        # print(f"[INFO] Mensaje enviado al asistente ({tokens_input} tokens): {incoming_msg}")
 
         # Agregar mensaje del usuario al Thread
         openai_client.beta.threads.messages.create(
