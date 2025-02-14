@@ -39,21 +39,38 @@ def procesar_y_responder(from_number, incoming_msg):
     Procesa el mensaje usando OpenAI y envía la respuesta a Twilio en segundo plano.
     """
     try:
-        # Generar respuesta con OpenAI
-        if from_number not in THREADS:
+        # Si el usuario ya tiene un Thread, revisamos cuántos mensajes tiene
+        if from_number in THREADS:
+            thread_id = THREADS[from_number]
+            messages = openai_client.beta.threads.messages.list(thread_id=thread_id).data
+            
+            # Si el Thread ya tiene más de 10 mensajes, se crea uno nuevo
+            if len(messages) >= 10:
+                thread = openai_client.beta.threads.create()
+                THREADS[from_number] = thread.id
+                print(f"[INFO] Nuevo Thread creado para {from_number} debido a límite de mensajes.")
+            else:
+                print(f"[INFO] Usando Thread existente para {from_number}, Mensajes en el hilo: {len(messages)}")
+        else:
+            # Si el usuario no tiene un Thread, se crea uno nuevo
             thread = openai_client.beta.threads.create()
             THREADS[from_number] = thread.id
+            print(f"[INFO] Nuevo Thread creado para {from_number}")
+
         thread_id = THREADS[from_number]
 
+        # Contar tokens del mensaje
         tokens_input = count_tokens(incoming_msg)
         print(f"[INFO] Mensaje enviado al asistente ({tokens_input} tokens): {incoming_msg}")
 
+        # Agregar mensaje del usuario al Thread
         openai_client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
             content=incoming_msg
         )
 
+        # Ejecutar el asistente en el Thread
         run = openai_client.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=ASSISTANT_ID
@@ -75,9 +92,6 @@ def procesar_y_responder(from_number, incoming_msg):
         else:
             respuesta = "Hubo un error procesando la solicitud."
 
-        tokens_output = count_tokens(respuesta)
-        print(f"[INFO] Respuesta recibida del asistente ({tokens_output} tokens): {respuesta}")
-
         # Enviar la respuesta a Twilio
         from twilio.rest import Client
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
@@ -87,11 +101,10 @@ def procesar_y_responder(from_number, incoming_msg):
             body=respuesta
         )
 
-        print(f"Respuesta enviada a {from_number}: {respuesta}")
+        print(f"[INFO] Respuesta enviada a {from_number}: {respuesta}")
 
     except Exception as e:
-        print(f"Error procesando mensaje para {from_number}: {str(e)}")
-
+        print(f"[ERROR] Procesando mensaje para {from_number}: {str(e)}")
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_reply():
     """
