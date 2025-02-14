@@ -17,6 +17,18 @@ app = Flask(__name__)
 
 THREADS = {}
 
+def count_tokens(text):
+    """Función para contar tokens en un mensaje usando OpenAI."""
+    try:
+        response = openai_client.embeddings.create(
+            model="text-embedding-ada-002",
+            input=text
+        )
+        return response.usage.total_tokens
+    except Exception as e:
+        print(f"Error contando tokens: {str(e)}")
+        return 0
+
 def preprocesar_mensaje(mensaje):
     if len(mensaje.strip()) == 0:
         return "Hola, ¿en qué puedo ayudarte?"
@@ -32,6 +44,9 @@ def procesar_y_responder(from_number, incoming_msg):
             thread = openai_client.beta.threads.create()
             THREADS[from_number] = thread.id
         thread_id = THREADS[from_number]
+
+        tokens_input = count_tokens(incoming_msg)
+        print(f"[INFO] Mensaje enviado al asistente ({tokens_input} tokens): {incoming_msg}")
 
         openai_client.beta.threads.messages.create(
             thread_id=thread_id,
@@ -59,6 +74,9 @@ def procesar_y_responder(from_number, incoming_msg):
                 respuesta = "No se pudo obtener una respuesta del asistente."
         else:
             respuesta = "Hubo un error procesando la solicitud."
+
+        tokens_output = count_tokens(respuesta)
+        print(f"[INFO] Respuesta recibida del asistente ({tokens_output} tokens): {respuesta}")
 
         # Enviar la respuesta a Twilio
         from twilio.rest import Client
